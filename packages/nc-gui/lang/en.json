@@ -1325,7 +1325,8 @@
     "status": "Status",
     "invoiceTotal": "Invoice Total",
     "pastInvoices": "Past Invoices",
-    "createNew": "Create New"
+    "createNew": "Create New",
+    "sendAllEvents": "Send all events"
   },
   "activity": {
     "clickToResolve": "Click to resolve",
