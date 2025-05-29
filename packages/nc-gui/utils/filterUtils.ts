@@ -1,6 +1,7 @@
 import {
   ClientType,
   type ColumnType,
+  type FilterType,
   type LinkToAnotherRecordType,
   type LookupType,
   SqlUiFactory,
@@ -750,7 +751,7 @@ export const composeColumnsForFilter = async ({
   getMeta,
 }: {
   rootMeta: TableType
-  getMeta: (metaIdOrTitle: string) => TableType
+  getMeta: (metaIdOrTitle: string) => Promise<TableType | null>
 }) => {
   const result: ColumnTypeForFilter[] = []
   for (const column of rootMeta.columns!) {
@@ -763,7 +764,7 @@ export const composeColumnsForFilter = async ({
     // include the column only if all only if all relations are bt
     while (nextCol && nextCol.uidt === UITypes.Lookup) {
       // extract the relation column meta
-      const lookupRelation: ColumnType | undefined = await getMeta(nextCol.fk_model_id!).columns?.find(
+      const lookupRelation: ColumnType | undefined = (await getMeta(nextCol.fk_model_id!))?.columns?.find(
         (c) => c.id === (nextCol!.colOptions as LookupType).fk_relation_column_id,
       )
 
@@ -772,7 +773,7 @@ export const composeColumnsForFilter = async ({
         break
       }
 
-      const relatedTableMeta: TableType = await getMeta(
+      const relatedTableMeta: TableType | null = await getMeta(
         (lookupRelation?.colOptions as LinkToAnotherRecordType).fk_related_model_id!,
       )
       nextCol = relatedTableMeta?.columns?.find((c) => c.id === (nextCol!.colOptions as LookupType).fk_lookup_column_id)
@@ -789,6 +790,18 @@ export const composeColumnsForFilter = async ({
     }
     columnTypeForFilter.filterUidt = getFilterUidt(columnTypeForFilter)
     result.push(columnTypeForFilter)
+  }
+  return result
+}
+
+export const getFilterCount = (filters: FilterType[]) => {
+  let result = 0
+  for (const filter of filters) {
+    if (filter.is_group) {
+      result += getFilterCount(filter.children ?? [])
+    } else {
+      result += 1
+    }
   }
   return result
 }
