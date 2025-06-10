@@ -13,7 +13,6 @@ import {
 } from 'nocodb-sdk'
 import type { CheckboxChangeEvent } from 'ant-design-vue/es/checkbox/interface'
 import { srcDestMappingColumns, tableColumns } from './utils'
-import { NcCheckbox } from '#components'
 
 interface Props {
   quickImportType: 'csv' | 'excel' | 'json'
@@ -61,8 +60,6 @@ const reloadHook = inject(ReloadViewDataHookInj, createEventHook())
 const useForm = Form.useForm
 
 const { $api, $state } = useNuxtApp()
-
-const { addTab } = useTabs()
 
 const basesStore = useBases()
 
@@ -741,11 +738,6 @@ async function importTemplate() {
 
       // reload table list
       await loadProjectTables(base.value.id, true)
-
-      addTab({
-        ...tab,
-        type: TabType.TABLE,
-      })
     } catch (e: any) {
       console.log(e)
       throw e

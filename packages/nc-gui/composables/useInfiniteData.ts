@@ -98,17 +98,20 @@ export function useInfiniteData(args: {
 
   const { getMeta, metas } = useMetas()
 
+  const { user } = useGlobal()
+
   const { fetchSharedViewData, fetchCount } = useSharedView()
 
-  const { nestedFilters, allFilters, sorts, isExternalSource, isAlreadyShownUpgradeModal } = disableSmartsheet
-    ? {
-        nestedFilters: ref([]),
-        allFilters: ref([]),
-        sorts: ref([]),
-        isExternalSource: computed(() => false),
-        isAlreadyShownUpgradeModal: ref(false),
-      }
-    : useSmartsheetStoreOrThrow()
+  const { nestedFilters, allFilters, sorts, isExternalSource, isAlreadyShownUpgradeModal, validFiltersFromUrlParams } =
+    disableSmartsheet
+      ? {
+          nestedFilters: ref([]),
+          allFilters: ref([]),
+          sorts: ref([]),
+          isExternalSource: computed(() => false),
+          isAlreadyShownUpgradeModal: ref(false),
+        }
+      : useSmartsheetStoreOrThrow()
 
   const { blockExternalSourceRecordVisibility, showUpgradeToSeeMoreRecordsModal } = useEeConfig()
 
@@ -908,8 +911,15 @@ export function useInfiniteData(args: {
       }
     }
 
+    const rowFilters = getPlaceholderNewRow(
+      [...allFilters.value, ...validFiltersFromUrlParams.value],
+      metaValue?.columns as ColumnType[],
+      {
+        currentUser: user.value ?? undefined,
+      },
+    )
     const newRow = {
-      row: { ...rowDefaultData(metaValue?.columns), ...rowOverwrite },
+      row: { ...rowDefaultData(metaValue?.columns), ...rowFilters, ...rowOverwrite },
       oldRow: {},
       rowMeta: { new: true, rowIndex: newRowIndex, path },
     }
@@ -932,7 +942,7 @@ export function useInfiniteData(args: {
     try {
       await $api.dbTableRow.nestedAdd(
         NOCO,
-        base.value.id as string,
+        metaValue?.base_id ?? (base.value.id as string),
         metaValue?.id as string,
         encodeURIComponent(rowId),
         type,
@@ -999,7 +1009,7 @@ export function useInfiniteData(args: {
 
         const fullRecord = await $api.dbTableRow.read(
           NOCO,
-          base?.value.id as string,
+          meta.value?.base_id ?? (base?.value.id as string),
           meta.value?.id as string,
           encodeURIComponent(id as string),
           {
@@ -1108,12 +1118,12 @@ export function useInfiniteData(args: {
       })
 
       if (missingRequiredColumns.size) {
-        return
+        return insertObj
       }
 
       const insertedData = await $api.dbViewRow.create(
         NOCO,
-        base?.value.id as string,
+        metaValue?.base_id ?? (base?.value.id as string),
         metaValue?.id as string,
         viewMetaValue?.id as string,
         { ...insertObj, ...(ltarState || {}) },
@@ -1286,7 +1296,7 @@ export function useInfiniteData(args: {
 
       const updatedRowData: Record<string, any> = await $api.dbViewRow.update(
         NOCO,
-        base?.value.id as string,
+        metaValue?.base_id ?? (base?.value.id as string),
         metaValue?.id as string,
         viewMetaValue?.id as string,
         encodeURIComponent(id),
@@ -1465,6 +1475,9 @@ export function useInfiniteData(args: {
       meta.value?.columns as ColumnType[],
       getBaseType(viewMeta.value?.view?.source_id),
       metas.value,
+      {
+        currentUser: user.value,
+      },
     )
 
     const newRow = dataCache.cachedRows.value.get(row.rowMeta.rowIndex!)
@@ -1487,6 +1500,9 @@ export function useInfiniteData(args: {
         meta.value?.columns as ColumnType[],
         getBaseType(viewMeta.value?.view?.source_id),
         metas.value,
+        {
+          currentUser: user.value,
+        },
       )
       row.rowMeta.isGroupChanged = isGroupValidationFailed
       row.rowMeta.changedGroupIndex = index
@@ -1562,7 +1578,7 @@ export function useInfiniteData(args: {
     try {
       const res: any = await $api.dbViewRow.delete(
         'noco',
-        base.value.id as string,
+        metaValue?.base_id ?? (base.value.id as string),
         metaValue?.id as string,
         viewMetaValue?.id as string,
         encodeURIComponent(id),
@@ -1616,6 +1632,7 @@ export function useInfiniteData(args: {
           })
         : await $api.dbViewRow.count(NOCO, base?.value?.id as string, meta.value!.id as string, viewMeta?.value?.id as string, {
             where: whereFilter,
+            ...(isUIAllowed('filterSync') ? {} : { filterArrJson: JSON.stringify(nestedFilters.value) }),
           })
 
       if (!path.length && blockExternalSourceRecordVisibility(isExternalSource.value)) {

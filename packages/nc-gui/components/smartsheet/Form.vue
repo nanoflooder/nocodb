@@ -90,17 +90,20 @@ const {
 const { preFillFormSearchParams } = storeToRefs(useViewsStore())
 
 const reloadEventHook = inject(ReloadViewDataHookInj, createEventHook())
+const { withLoading } = useLoadingTrigger()
 
-reloadEventHook.on(async (params) => {
-  if (params?.isFormFieldFilters) {
-    setTimeout(() => {
-      checkFieldVisibility()
-    }, 100)
-  } else {
-    await Promise.all([loadFormView(), loadReleatedMetas()])
-    setFormData()
-  }
-})
+reloadEventHook.on(
+  withLoading(async (params) => {
+    if (params?.isFormFieldFilters) {
+      setTimeout(() => {
+        checkFieldVisibility()
+      }, 100)
+    } else {
+      await Promise.all([loadFormView(), loadReleatedMetas()])
+      setFormData()
+    }
+  }),
+)
 
 const { fields, showAll, hideAll } = useViewColumnsOrThrow()
 
@@ -1103,6 +1106,7 @@ const { message: templatedMessage } = useTemplatedMessage(
                               :key="formViewData.logo_url?.path"
                               :srcs="getFormLogoSrc"
                               class="flex-none nc-form-logo !object-contain object-left max-h-full max-w-full !m-0"
+                              :is-cell-preview="false"
                             />
                             <div
                               class="items-center space-x-1 flex-nowrap m-3"
